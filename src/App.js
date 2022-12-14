@@ -1,19 +1,27 @@
-import React, { useState } from "react";
+import React from "react";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
+import NavBar from "./components/NavBar";
+import routes from "./routes";
 
 function App() {
-  const [number, setNumber] = useState(1);
-
-  const double = () => {
-    setNumber(number * 2);
-  };
-
   return (
-    <>
-      <div>{number}</div>
-      <button className="btn btn-primary" onClick={double}>
-        Submit
-      </button>
-    </>
+    <Router>
+      <NavBar />
+      <div className="container mt-3">
+        <Switch>
+          {routes.map((route) => {
+            return (
+              <Route
+                key={route.path}
+                exact
+                path={route.path}
+                component={route.component}
+              />
+            );
+          })}
+        </Switch>
+      </div>
+    </Router>
   );
 }
 
