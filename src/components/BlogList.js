@@ -5,6 +5,8 @@ import { useHistory, useLocation } from "react-router-dom";
 import LoadingSpinner from "../components/LoadingSpinner";
 import Pagination from "./Pagination";
 import Proptypes from "prop-types";
+import Toast from "./Toast";
+import useToast from "../hooks/toast";
 
 const BlogList = ({ isAdmin }) => {
   const history = useHistory();
@@ -16,6 +18,8 @@ const BlogList = ({ isAdmin }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [numberOfPosts, setNumberOfPosts] = useState(0);
   const [numberOfPages, setNumberOfPages] = useState(0);
+  const [searchText, setSearchText] = useState("");
+  const [toasts, addToast, deleteToast] = useToast();
   const limit = 5;
 
   useEffect(() => {
@@ -24,6 +28,8 @@ const BlogList = ({ isAdmin }) => {
 
   const onClickPageButton = (page) => {
     history.push(`${location.pathname}?page=${page}`);
+    setCurrentPage(1);
+    getPosts(1);
   };
 
   const getPosts = useCallback(
@@ -33,11 +39,13 @@ const BlogList = ({ isAdmin }) => {
         _limit: limit,
         _sort: "id",
         _order: "desc",
+        title_like: searchText,
       };
 
       if (!isAdmin) {
         params = { ...params, publish: true };
       }
+
       axios
         .get(`http://localhost:3001/posts`, {
           params,
@@ -48,29 +56,28 @@ const BlogList = ({ isAdmin }) => {
           setLoading(false);
         });
     },
-    [isAdmin]
+    [isAdmin, searchText]
   );
 
   useEffect(() => {
     setCurrentPage(parseInt(pageParam) || 1);
     getPosts(parseInt(pageParam) || 1);
-  }, [pageParam, getPosts]);
+  }, []);
 
   const deleteBlog = (e, id) => {
     // 이벤트 버블링 방지
     e.stopPropagation();
     axios.delete(`http://localhost:3001/posts/${id}`).then(() => {
       setPosts((prevPosts) => prevPosts.filter((post) => post.id !== id));
-      setLoading(false);
+      addToast({
+        text: "Successfully deleted",
+        type: "success",
+      });
     });
   };
 
   if (loading) {
     return <LoadingSpinner />;
-  }
-
-  if (posts.length === 0) {
-    return <div> "No blog posts found"</div>;
   }
 
   const renderBlogList = () => {
@@ -96,15 +103,39 @@ const BlogList = ({ isAdmin }) => {
     });
   };
 
+  const onSearch = (e) => {
+    if (e.key === "Enter") {
+      history.push(`${location.pathname}?page=${1}`);
+      setCurrentPage(1);
+      getPosts(1);
+    }
+  };
+
   return (
     <div>
-      {renderBlogList()}
-      {numberOfPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          numberOfPages={numberOfPages}
-          onClick={onClickPageButton}
-        />
+      <Toast toasts={toasts} deleteToast={deleteToast} />
+      <input
+        className="form-control"
+        type="text"
+        placeholder="Search..."
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        onKeyUp={onSearch}
+      />
+      <hr />
+      {posts.length === 0 ? (
+        <div> "No blog posts found"</div>
+      ) : (
+        <>
+          {renderBlogList()}
+          {numberOfPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              numberOfPages={numberOfPages}
+              onClick={onClickPageButton}
+            />
+          )}
+        </>
       )}
     </div>
   );
