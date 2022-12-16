@@ -1,11 +1,13 @@
 import axios from "axios";
 import { useState, useEffect, useCallback } from "react";
 import Card from "../components/Card";
-import { useHistory, useLocation } from "react-router-dom";
+import { useHistory } from "react-router";
 import LoadingSpinner from "../components/LoadingSpinner";
 import Pagination from "./Pagination";
-import Proptypes from "prop-types";
-import useToast from "../hooks/toast";
+import { useLocation } from "react-router-dom";
+import propTypes from "prop-types";
+import Toast from "../components/Toast";
+import { v4 as uuidv4 } from "uuid";
 
 const BlogList = ({ isAdmin }) => {
   const history = useHistory();
@@ -18,9 +20,7 @@ const BlogList = ({ isAdmin }) => {
   const [numberOfPosts, setNumberOfPosts] = useState(0);
   const [numberOfPages, setNumberOfPages] = useState(0);
   const [searchText, setSearchText] = useState("");
-  const [error, setError] = useState("");
-
-  const { addToast } = useToast();
+  const [toasts, setToasts] = useState([]);
   const limit = 5;
 
   useEffect(() => {
@@ -29,8 +29,8 @@ const BlogList = ({ isAdmin }) => {
 
   const onClickPageButton = (page) => {
     history.push(`${location.pathname}?page=${page}`);
-    setCurrentPage(1);
-    getPosts(1);
+    setCurrentPage(page);
+    getPosts(page);
   };
 
   const getPosts = useCallback(
@@ -55,14 +55,6 @@ const BlogList = ({ isAdmin }) => {
           setNumberOfPosts(res.headers["x-total-count"]);
           setPosts(res.data);
           setLoading(false);
-        })
-        .catch((e) => {
-          setLoading(false);
-          setError("Something went wrong in database");
-          addToast({
-            text: "Something went wrong",
-            type: "danger",
-          });
         });
     },
     [isAdmin, searchText]
@@ -73,24 +65,32 @@ const BlogList = ({ isAdmin }) => {
     getPosts(parseInt(pageParam) || 1);
   }, []);
 
+  const addToast = (toast) => {
+    const toastWithId = {
+      ...toast,
+      id: uuidv4(),
+    };
+    setToasts((prev) => [...prev, toastWithId]);
+  };
+
+  const deleteToast = (id) => {
+    const filteredToasts = toasts.filter((toast) => {
+      return toast.id !== id;
+    });
+
+    setToasts(filteredToasts);
+  };
+
   const deleteBlog = (e, id) => {
-    // 이벤트 버블링 방지
     e.stopPropagation();
-    axios
-      .delete(`http://localhost:3001/posts/${id}`)
-      .then(() => {
-        setPosts((prevPosts) => prevPosts.filter((post) => post.id !== id));
-        addToast({
-          text: "Successfully deleted",
-          type: "success",
-        });
-      })
-      .catch((e) => {
-        addToast({
-          text: "The blog could not be deleted.",
-          type: "danger",
-        });
+
+    axios.delete(`http://localhost:3001/posts/${id}`).then(() => {
+      setPosts((prevPosts) => prevPosts.filter((post) => post.id !== id));
+      addToast({
+        text: "Successfully deleted",
+        type: "success",
       });
+    });
   };
 
   if (loading) {
@@ -122,29 +122,26 @@ const BlogList = ({ isAdmin }) => {
 
   const onSearch = (e) => {
     if (e.key === "Enter") {
-      history.push(`${location.pathname}?page=${1}`);
+      history.push(`${location.pathname}?page=1`);
       setCurrentPage(1);
       getPosts(1);
     }
   };
 
-  if (error) {
-    return <div>{error}</div>;
-  }
-
   return (
     <div>
+      <Toast toasts={toasts} deleteToast={deleteToast} />
       <input
-        className="form-control"
         type="text"
-        placeholder="Search..."
+        placeholder="Search.."
+        className="form-control"
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
         onKeyUp={onSearch}
       />
       <hr />
       {posts.length === 0 ? (
-        <div> "No blog posts found"</div>
+        <div>No blog posts found</div>
       ) : (
         <>
           {renderBlogList()}
@@ -162,7 +159,7 @@ const BlogList = ({ isAdmin }) => {
 };
 
 BlogList.propTypes = {
-  isAdmin: Proptypes.bool,
+  isAdmin: propTypes.bool,
 };
 
 BlogList.defaultProps = {
