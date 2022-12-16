@@ -1,12 +1,15 @@
 import React from "react";
+import { useSelector } from "react-redux";
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import Toast from "./components/Toast";
 import useToast from "./hooks/toast";
+import ProtectedRoute from "./ProtectedRoute";
 import routes from "./routes";
 
 function App() {
-  const [toasts, addToast, deleteToast] = useToast();
+  const toasts = useSelector((state) => state.toast.toast);
+  const { deleteToast } = useToast();
   return (
     <Router>
       <NavBar />
@@ -14,17 +17,23 @@ function App() {
       <div className="container mt-3">
         <Switch>
           {routes.map((route) => {
-            const Component = route.component;
-
+            if (route.auth) {
+              return (
+                <ProtectedRoute
+                  key={route.path}
+                  exact
+                  path={route.path}
+                  component={route.component}
+                />
+              );
+            }
             return (
               <Route
                 key={route.path}
                 exact
                 path={route.path}
-                // component={route.component}
-              >
-                <Component addToast={addToast} />
-              </Route>
+                component={route.component}
+              />
             );
           })}
         </Switch>

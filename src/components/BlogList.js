@@ -5,7 +5,6 @@ import { useHistory, useLocation } from "react-router-dom";
 import LoadingSpinner from "../components/LoadingSpinner";
 import Pagination from "./Pagination";
 import Proptypes from "prop-types";
-import Toast from "./Toast";
 import useToast from "../hooks/toast";
 
 const BlogList = ({ isAdmin }) => {
@@ -19,7 +18,9 @@ const BlogList = ({ isAdmin }) => {
   const [numberOfPosts, setNumberOfPosts] = useState(0);
   const [numberOfPages, setNumberOfPages] = useState(0);
   const [searchText, setSearchText] = useState("");
-  const [toasts, addToast, deleteToast] = useToast();
+  const [error, setError] = useState("");
+
+  const { addToast } = useToast();
   const limit = 5;
 
   useEffect(() => {
@@ -54,6 +55,14 @@ const BlogList = ({ isAdmin }) => {
           setNumberOfPosts(res.headers["x-total-count"]);
           setPosts(res.data);
           setLoading(false);
+        })
+        .catch((e) => {
+          setLoading(false);
+          setError("Something went wrong in database");
+          addToast({
+            text: "Something went wrong",
+            type: "danger",
+          });
         });
     },
     [isAdmin, searchText]
@@ -67,13 +76,21 @@ const BlogList = ({ isAdmin }) => {
   const deleteBlog = (e, id) => {
     // 이벤트 버블링 방지
     e.stopPropagation();
-    axios.delete(`http://localhost:3001/posts/${id}`).then(() => {
-      setPosts((prevPosts) => prevPosts.filter((post) => post.id !== id));
-      addToast({
-        text: "Successfully deleted",
-        type: "success",
+    axios
+      .delete(`http://localhost:3001/posts/${id}`)
+      .then(() => {
+        setPosts((prevPosts) => prevPosts.filter((post) => post.id !== id));
+        addToast({
+          text: "Successfully deleted",
+          type: "success",
+        });
+      })
+      .catch((e) => {
+        addToast({
+          text: "The blog could not be deleted.",
+          type: "danger",
+        });
       });
-    });
   };
 
   if (loading) {
@@ -111,9 +128,12 @@ const BlogList = ({ isAdmin }) => {
     }
   };
 
+  if (error) {
+    return <div>{error}</div>;
+  }
+
   return (
     <div>
-      <Toast toasts={toasts} deleteToast={deleteToast} />
       <input
         className="form-control"
         type="text"
